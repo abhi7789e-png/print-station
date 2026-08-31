@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Send Document to Print</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; text-align: center; background: #f8fafc; }
+    .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+    input, select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
+    button { background: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; }
+    #upi-section { display: none; margin: 15px 0; background: #f1f5f9; padding: 10px; border-radius: 8px; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Srinibas Print Station</h2>
+    <p>Upload a PDF or image to send directly to print.</p>
+    
+    <input type="file" id="fileInput" accept=".pdf,image/*" />
+
+    <label style="display:block; text-align:left; font-size: 13px; font-weight: bold; margin-top: 10px;">Payment Method:</label>
+    <select id="paymentMethod" onchange="handlePaymentChange(this.value)">
+      <option value="Cash">Cash on Counter</option>
+      <option value="Online">Online UPI</option>
+    </select>
+
+    <div id="upi-section">
+      <p style="font-size: 14px; margin-bottom: 8px;">Scan with GPay / PhonePe / Paytm:</p>
+      <!-- Put your actual UPI ID after pa= -->
+      <img id="upiImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=7789010845@ppaytm%26pn=Srinibas" width="180" alt="UPI QR" />
+    </div>
+
+    <button id="sendBtn" onclick="uploadAndSend()">Send to Print</button>
+    <p id="status" style="font-size: 14px; color: #475569;"></p>
+  </div>
+
+  <script>
+    // Paste your Step 1.3 Firebase Keys here:
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOE1m_P-cnB-D79QKh0Hkp4VT-bG0BcuY",
+  authDomain: "auto-print-8e959.firebaseapp.com",
+  databaseURL: "https://auto-print-8e959-default-rtdb.firebaseio.com",
+  projectId: "auto-print-8e959",
+  storageBucket: "auto-print-8e959.firebasestorage.app",
+  messagingSenderId: "718790139534",
+  appId: "1:718790139534:web:0285bace5f866e10d633df",
+  measurementId: "G-QVXPPHQNTV"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    function handlePaymentChange(val) {
+      document.getElementById("upi-section").style.display = (val === "Online") ? "block" : "none";
+    }
+
+    async function uploadAndSend() {
+      const file = document.getElementById("fileInput").files[0];
+      const payment = document.getElementById("paymentMethod").value;
+      const status = document.getElementById("status");
+      const btn = document.getElementById("sendBtn");
+
+      if (!file) return alert("Please select a file first!");
+
+      btn.disabled = true;
+      status.innerText = "Uploading document...";
+
+      try {
+        // Upload file to Firebase Storage
+        const fileRef = storage.ref(`prints/${Date.now()}_${file.name}`);
+        await fileRef.put(file);
+        const fileUrl = await fileRef.getDownloadURL();
+
+        // Send alert/record to Firestore
+        await db.collection("print_jobs").add({
+          fileName: file.name,
+          fileType: file.type,
+          fileUrl: fileUrl,
+          paymentMethod: payment,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        status.innerHTML = "✅ Sent successfully! Srinibas is reviewing it.";
+      } catch (err) {
+        alert("Upload error: " + err.message);
+        btn.disabled = false;
+        status.innerText = "";
+      }
+    }
+  </script>
+</body>
+</html>
