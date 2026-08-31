@@ -6,10 +6,12 @@
   <title>Send Document to Print</title>
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; background: #f8fafc; }
-    .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-    input, select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
-    button { background: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; }
-    #upi-section { display: none; margin: 15px 0; background: #f1f5f9; padding: 10px; border-radius: 8px; }
+    .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; text-align: left; }
+    input, select, button { width: 100%; padding: 12px; margin: 8px 0 16px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
+    label { font-size: 13px; font-weight: bold; color: #334155; }
+    button { background: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    h2 { text-align: center; margin-top: 0; }
+    p.subtitle { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 20px; }
   </style>
   <!-- Firebase Core + Realtime Database SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -19,45 +21,51 @@
 
   <div class="card">
     <h2>Srinibas Print Station</h2>
-    <p>Upload a PDF or image to send directly to print.</p>
+    <p class="subtitle">Upload a PDF or image and configure print settings.</p>
     
+    <label>Choose File:</label>
     <input type="file" id="fileInput" accept=".pdf,image/*" />
 
-    <label style="display:block; text-align:left; font-size: 13px; font-weight: bold; margin-top: 10px;">Payment Method:</label>
-    <select id="paymentMethod" onchange="handlePaymentChange(this.value)">
-      <option value="Cash">Cash on Counter</option>
-      <option value="Online">Online UPI</option>
+    <label>1. Paper Type:</label>
+    <select id="paperType">
+      <option value="A4 Normal (75 GSM)">A4 Normal (75 GSM)</option>
+      <option value="A4 Glossy / Photo">A4 Glossy / Photo</option>
+      <option value="Legal">Legal</option>
+      <option value="A3">A3</option>
     </select>
 
-    <div id="upi-section">
-      <p style="font-size: 14px; margin-bottom: 8px;">Scan with GPay / PhonePe / Paytm:</p>
-      <!-- Replace with your actual UPI ID -->
-      <img id="upiImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=7789010845@ybl%26pn=Srinibas" width="180" alt="UPI QR" />
-    </div>
+    <label>2. Orientation:</label>
+    <select id="orientation">
+      <option value="Portrait">Portrait (Vertical)</option>
+      <option value="Landscape">Landscape (Horizontal)</option>
+    </select>
+
+    <label>3. Color Mode:</label>
+    <select id="colorMode">
+      <option value="Black & White">Black & White (Monochrome)</option>
+      <option value="Color">Color</option>
+    </select>
 
     <button id="sendBtn" onclick="uploadAndSend()">Send to Print</button>
-    <p id="status" style="font-size: 14px; color: #475569;"></p>
+    <p id="status" style="font-size: 14px; color: #475569; text-align: center;"></p>
   </div>
 
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyBOE1m_P-cnB-D79QKh0Hkp4VT-bG0BcuY",
+       apiKey: "AIzaSyBOE1m_P-cnB-D79QKh0Hkp4VT-bG0BcuY",
   authDomain: "auto-print-8e959.firebaseapp.com",
   databaseURL: "https://auto-print-8e959-default-rtdb.firebaseio.com",
   projectId: "auto-print-8e959",
   appId: "1:718790139534:web:0285bace5f866e10d633df"
- 
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    function handlePaymentChange(val) {
-      document.getElementById("upi-section").style.display = (val === "Online") ? "block" : "none";
-    }
-
     function uploadAndSend() {
       const file = document.getElementById("fileInput").files[0];
-      const payment = document.getElementById("paymentMethod").value;
+      const paperType = document.getElementById("paperType").value;
+      const orientation = document.getElementById("orientation").value;
+      const colorMode = document.getElementById("colorMode").value;
       const status = document.getElementById("status");
       const btn = document.getElementById("sendBtn");
 
@@ -70,15 +78,18 @@
       reader.onload = function(e) {
         const fileBase64 = e.target.result;
 
-        // Push directly to Realtime Database
+        // Push print job with new attributes
         db.ref('print_jobs').push({
           fileName: file.name,
           fileType: file.type,
           fileData: fileBase64,
-          paymentMethod: payment,
+          paperType: paperType,
+          orientation: orientation,
+          colorMode: colorMode,
           timestamp: Date.now()
         }).then(() => {
           status.innerHTML = "✅ Sent successfully! Srinibas is reviewing it.";
+          btn.disabled = false;
         }).catch((err) => {
           alert("Error: " + err.message);
           btn.disabled = false;
