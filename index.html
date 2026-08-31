@@ -11,9 +11,9 @@
     button { background: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; }
     #upi-section { display: none; margin: 15px 0; background: #f1f5f9; padding: 10px; border-radius: 8px; }
   </style>
+  <!-- Firebase Core + Realtime Database SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
 
@@ -31,8 +31,8 @@
 
     <div id="upi-section">
       <p style="font-size: 14px; margin-bottom: 8px;">Scan with GPay / PhonePe / Paytm:</p>
-      <!-- Put your actual UPI ID after pa= -->
-      <img id="upiImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=7789010845@ppaytm%26pn=Srinibas" width="180" alt="UPI QR" />
+      <!-- Replace with your actual UPI ID -->
+      <img id="upiImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=YOUR_UPI_ID@okhdfcbank%26pn=Srinibas" width="180" alt="UPI QR" />
     </div>
 
     <button id="sendBtn" onclick="uploadAndSend()">Send to Print</button>
@@ -40,26 +40,22 @@
   </div>
 
   <script>
-    // Paste your Step 1.3 Firebase Keys here:
     const firebaseConfig = {
       apiKey: "AIzaSyBOE1m_P-cnB-D79QKh0Hkp4VT-bG0BcuY",
   authDomain: "auto-print-8e959.firebaseapp.com",
   databaseURL: "https://auto-print-8e959-default-rtdb.firebaseio.com",
   projectId: "auto-print-8e959",
-  storageBucket: "auto-print-8e959.firebasestorage.app",
-  messagingSenderId: "718790139534",
-  appId: "1:718790139534:web:0285bace5f866e10d633df",
-  measurementId: "G-QVXPPHQNTV"
+  appId: "1:718790139534:web:0285bace5f866e10d633df"
+ 
     };
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const storage = firebase.storage();
+    const db = firebase.database();
 
     function handlePaymentChange(val) {
       document.getElementById("upi-section").style.display = (val === "Online") ? "block" : "none";
     }
 
-    async function uploadAndSend() {
+    function uploadAndSend() {
       const file = document.getElementById("fileInput").files[0];
       const payment = document.getElementById("paymentMethod").value;
       const status = document.getElementById("status");
@@ -68,29 +64,29 @@
       if (!file) return alert("Please select a file first!");
 
       btn.disabled = true;
-      status.innerText = "Uploading document...";
+      status.innerText = "Processing document...";
 
-      try {
-        // Upload file to Firebase Storage
-        const fileRef = storage.ref(`prints/${Date.now()}_${file.name}`);
-        await fileRef.put(file);
-        const fileUrl = await fileRef.getDownloadURL();
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const fileBase64 = e.target.result;
 
-        // Send alert/record to Firestore
-        await db.collection("print_jobs").add({
+        // Push directly to Realtime Database
+        db.ref('print_jobs').push({
           fileName: file.name,
           fileType: file.type,
-          fileUrl: fileUrl,
+          fileData: fileBase64,
           paymentMethod: payment,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          timestamp: Date.now()
+        }).then(() => {
+          status.innerHTML = "✅ Sent successfully! Srinibas is reviewing it.";
+        }).catch((err) => {
+          alert("Error: " + err.message);
+          btn.disabled = false;
+          status.innerText = "";
         });
+      };
 
-        status.innerHTML = "✅ Sent successfully! Srinibas is reviewing it.";
-      } catch (err) {
-        alert("Upload error: " + err.message);
-        btn.disabled = false;
-        status.innerText = "";
-      }
+      reader.readAsDataURL(file);
     }
   </script>
 </body>
